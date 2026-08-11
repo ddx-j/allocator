@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Allocation System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #12161C;
+    --surface: #1A2028;
+    --surface-2: #1F2630;
+    --hairline: #2C3542;
+    --bone: #E9E6DC;
+    --muted: #8B93A0;
+    --brass: #B08D57;
+    --brass-dim: #6E5A3A;
+    --green: #5CA37A;
+    --rust: #BE6A46;
+    --radius: 3px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--ink);
+    color: var(--bone);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+  body {
+    padding: 48px 20px 80px;
+    display: flex;
+    justify-content: center;
+  }
+  .sheet {
+    width: 100%;
+    max-width: 640px;
+  }
+
+  /* Header */
+  .letterhead {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid var(--hairline);
+    padding-bottom: 18px;
+    margin-bottom: 32px;
+  }
+  .letterhead h1 {
+    font-family: 'Newsreader', serif;
+    font-weight: 500;
+    font-size: 28px;
+    letter-spacing: 0.01em;
+    margin: 0;
+  }
+  .letterhead .date {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* Income input styled like a deposit line */
+  .deposit {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin-bottom: 28px;
+  }
+  .deposit label {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .deposit-row {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px dashed var(--hairline);
+    padding-bottom: 12px;
+  }
+  .deposit-row .sign {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 26px;
+    color: var(--brass);
+    margin-right: 8px;
+  }
+  .deposit-row input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--bone);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 26px;
+    font-weight: 500;
+    -moz-appearance: textfield;
+  }
+  .deposit-row input::-webkit-outer-spin-button,
+  .deposit-row input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .deposit-row input::placeholder { color: #3A4250; }
+
+  /* Mode tabs styled like ledger index tabs */
+  .tabs-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 10px 2px;
+  }
+  .tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .tab {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s ease, background 0.15s ease;
+    font-family: 'Inter', sans-serif;
+  }
+  .tab:hover { border-color: var(--brass-dim); }
+  .tab.active {
+    border-color: var(--brass);
+    background: linear-gradient(180deg, rgba(176,141,87,0.10), rgba(176,141,87,0.03));
+  }
+  .tab .tab-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--bone);
+    margin-bottom: 3px;
+  }
+  .tab.active .tab-name { color: var(--brass); }
+  .tab .tab-split {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .irregular-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 32px;
+    cursor: pointer;
+  }
+  .irregular-toggle .label {
+    font-size: 13px;
+    color: var(--bone);
+  }
+  .irregular-toggle .label span {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .switch {
+    position: relative;
+    width: 38px;
+    height: 20px;
+    background: #2C3542;
+    border-radius: 10px;
+    transition: background 0.15s ease;
+    flex-shrink: 0;
+  }
+  .switch::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 16px; height: 16px;
+    background: var(--muted);
+    border-radius: 50%;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  .irregular-toggle.on .switch { background: rgba(176,141,87,0.35); }
+  .irregular-toggle.on .switch::after { transform: translateX(18px); background: var(--brass); }
+
+  /* Stamp badge showing active mode */
+  .stamp-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .stamp-row .line { flex: 1; height: 1px; background: var(--hairline); }
+  .stamp {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--brass);
+    border: 1px solid var(--brass-dim);
+    border-radius: 20px;
+    padding: 5px 14px;
+    white-space: nowrap;
+  }
+
+  /* Category sections */
+  .categories {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .cat {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .cat-left .cat-name {
+    font-family: 'Newsreader', serif;
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--bone);
+    margin-bottom: 4px;
+  }
+  .cat-left .cat-pct {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  .cat-right {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--bone);
+    text-align: right;
+  }
+  .cat.bills .cat-right { color: var(--bone); }
+  .cat.spending .cat-right { color: var(--bone); }
+  .cat.split {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+  .split-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .split-top .cat-name { font-family: 'Newsreader', serif; font-size: 17px; font-weight: 500; }
+  .split-rows { display: flex; flex-direction: column; gap: 10px; }
+  .split-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 10px;
+    border-top: 1px dashed var(--hairline);
+  }
+  .split-item:first-child { border-top: none; padding-top: 0; }
+  .split-item .si-left {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .split-item .si-left .si-pct {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    margin-left: 6px;
+  }
+  .split-item .si-right {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+  }
+  .split-item.debt .si-right { color: var(--rust); }
+  .split-item.savings .si-right { color: var(--green); }
+
+  /* Total footer */
+  .total-line {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--hairline);
+    display: flex;
+    justify-content: space-between;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+
+  @media (max-width: 480px) {
+    .letterhead h1 { font-size: 22px; }
+    .cat-right { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="letterhead">
+    <h1>Allocation Ledger</h1>
+    <div class="date" id="today"></div>
+  </div>
+
+  <div class="deposit">
+    <label for="income">Amount received</label>
+    <div class="deposit-row">
+      <span class="sign">$</span>
+      <input type="number" id="income" placeholder="0.00" step="0.01" inputmode="decimal">
+    </div>
+  </div>
+
+  <div class="irregular-toggle" id="irregularToggle">
+    <div class="label">
+      Irregular income
+      <span>Switches to the 30/40/10/20 split</span>
+    </div>
+    <div class="switch"></div>
+  </div>
+
+  <div id="regularModes">
+    <div class="tabs-label">System</div>
+    <div class="tabs">
+      <div class="tab active" data-mode="balanced">
+        <div class="tab-name">Balanced D/S</div>
+        <div class="tab-split">62 / 20 / 10 / 8</div>
+      </div>
+      <div class="tab" data-mode="aggressive">
+        <div class="tab-name">Aggressive Debt</div>
+        <div class="tab-split">62 / 20 / 15 / 3</div>
+      </div>
+      <div class="tab" data-mode="payoff" style="grid-column: 1 / -1;">
+        <div class="tab-name">Post-Payoff</div>
+        <div class="tab-split">62 / 30 / 0 / 8</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stamp-row">
+    <div class="line"></div>
+    <div class="stamp" id="activeStamp">Balanced D/S</div>
+    <div class="line"></div>
+  </div>
+
+  <div class="categories">
+    <div class="cat bills">
+      <div class="cat-left">
+        <div class="cat-name">Bills</div>
+        <div class="cat-pct" id="billsPct">B · 62%</div>
+      </div>
+      <div class="cat-right" id="billsAmt">$0.00</div>
+    </div>
+
+    <div class="cat spending">
+      <div class="cat-left">
+        <div class="cat-name">Spending</div>
+        <div class="cat-pct" id="spendPct">SP · 20%</div>
+      </div>
+      <div class="cat-right" id="spendAmt">$0.00</div>
+    </div>
+
+    <div class="cat split">
+      <div class="split-top">
+        <div class="cat-name">Debt / Savings</div>
+      </div>
+      <div class="split-rows">
+        <div class="split-item debt">
+          <div class="si-left">Debt<span class="si-pct" id="debtPct">D · 10%</span></div>
+          <div class="si-right" id="debtAmt">$0.00</div>
+        </div>
+        <div class="split-item savings">
+          <div class="si-left">Savings<span class="si-pct" id="savPct">Sav · 8%</span></div>
+          <div class="si-right" id="savAmt">$0.00</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="total-line">
+    <span id="modeLabel">Balanced D/S — regular income</span>
+    <span id="totalCheck">100%</span>
+  </div>
+
+</div>
+
+<script>
+  const MODES = {
+    balanced:   { name: 'Balanced D/S',    B: 62, SP: 20, D: 10, Sav: 8 },
+    aggressive: { name: 'Aggressive Debt',  B: 62, SP: 20, D: 15, Sav: 3 },
+    payoff:     { name: 'Post-Payoff',      B: 62, SP: 30, D: 0,  Sav: 8 },
+    irregular:  { name: 'Irregular Income', B: 10, SP: 30, D: 20, Sav: 40 }
+  };
+
+  let currentMode = 'balanced';
+  let isIrregular = false;
+
+  const incomeInput = document.getElementById('income');
+  const tabs = document.querySelectorAll('.tab');
+  const irregularToggle = document.getElementById('irregularToggle');
+  const regularModes = document.getElementById('regularModes');
+  const activeStamp = document.getElementById('activeStamp');
+  const modeLabel = document.getElementById('modeLabel');
+
+  const els = {
+    billsPct: document.getElementById('billsPct'),
+    billsAmt: document.getElementById('billsAmt'),
+    spendPct: document.getElementById('spendPct'),
+    spendAmt: document.getElementById('spendAmt'),
+    debtPct: document.getElementById('debtPct'),
+    debtAmt: document.getElementById('debtAmt'),
+    savPct: document.getElementById('savPct'),
+    savAmt: document.getElementById('savAmt'),
+    totalCheck: document.getElementById('totalCheck'),
+  };
+
+  function fmt(n) {
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function activeModeKey() {
+    return isIrregular ? 'irregular' : currentMode;
+  }
+
+  function render() {
+    const mode = MODES[activeModeKey()];
+    const income = parseFloat(incomeInput.value) || 0;
+
+    els.billsPct.textContent = `B · ${mode.B}%`;
+    els.spendPct.textContent = `SP · ${mode.SP}%`;
+    els.debtPct.textContent = `D · ${mode.D}%`;
+    els.savPct.textContent = `Sav · ${mode.Sav}%`;
+
+    els.billsAmt.textContent = fmt(income * mode.B / 100);
+    els.spendAmt.textContent = fmt(income * mode.SP / 100);
+    els.debtAmt.textContent = fmt(income * mode.D / 100);
+    els.savAmt.textContent = fmt(income * mode.Sav / 100);
+
+    els.totalCheck.textContent = `${mode.B + mode.SP + mode.D + mode.Sav}%`;
+
+    activeStamp.textContent = mode.name;
+    modeLabel.textContent = `${mode.name} — ${isIrregular ? 'irregular' : 'regular'} income`;
+
+    regularModes.style.display = isIrregular ? 'none' : 'block';
+    irregularToggle.classList.toggle('on', isIrregular);
+  }
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentMode = tab.dataset.mode;
+      render();
+    });
+  });
+
+  irregularToggle.addEventListener('click', () => {
+    isIrregular = !isIrregular;
+    render();
+  });
+
+  incomeInput.addEventListener('input', render);
+
+  document.getElementById('today').textContent = new Date().toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric'
+  }).toUpperCase();
+
+  render();
+</script>
+</body>
+</html>
